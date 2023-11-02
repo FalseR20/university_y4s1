@@ -52,13 +52,35 @@ CREATE TABLE visits
     drug_id    INTEGER REFERENCES drugs (id)     NULL
 );
 
+
+CREATE TABLE visits2
+(
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER REFERENCES patients (id)  NOT NULL,
+    doctor_id  INTEGER REFERENCES doctors (id)   NOT NULL,
+    begin_dt   DATETIME                          NOT NULL,
+    end_dt     DATETIME                          NOT NULL,
+    place      TEXT                              NULL, -- null means at hospital
+    symptoms   TEXT                              NULL,
+    diagnosis  INTEGER REFERENCES diagnoses (id) NULL
+);
+
+
+CREATE TABLE written_drugs
+(
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    drug_id  INTEGER REFERENCES drugs (id)   NULL,
+    visit_id INTEGER REFERENCES visits2 (id) NULL
+);
+
 -- Insert values
 
 INSERT INTO patients (name, is_male, birthday, address)
 VALUES ('Иванов И.И.', true, '1987-04-02', 'Иванова 2'),
        ('Надоедыч Н.Н', true, '1967-01-14', 'Надоедова 23'),
        ('Пупкин В.В.', true, '1992-03-23', 'Пупкина 15'),
-       ('Женщина Ж.Ж.', false, '1922-01-01', 'Женская 51');
+       ('Женщина Ж.Ж.', false, '1922-01-01', 'Женская 51'),
+       ('Беброчкин Б.Б.', true, '1992-03-23', 'Беброва 15');
 
 INSERT INTO doctors (name)
 VALUES ('Гиппократова Г.Г.'),
@@ -68,7 +90,7 @@ INSERT INTO drugs (name, method, description, side_effects)
 VALUES ('Болеутолин 3%', 'внутренний', 'Снимает боль', 'Наркотическая зависимость'),
        ('Поспибро 100мг', 'внутренний', 'Снотворное', 'Наркотическая зависимость'),
        ('Вкуснопахнин', 'внешний', 'Мазь успокаивающая', 'Чувство холода'),
-       ('Алкобухлин 3%', 'внутренний', 'Сироп от кашля', 'Алкогольная зависимость');
+       ('Алкобухлин 3', 'внутренний', 'Сироп от кашля', 'Алкогольная зависимость');
 
 INSERT INTO diagnoses (name)
 VALUES ('Открытый перелом'),
@@ -85,7 +107,31 @@ VALUES (1, 2, '2019-01-04 14:30', '2019-01-04 14:40', 'Иванова 2', 'Бо�
        (4, 1, '2019-01-25 12:00', '2019-01-25 12:10', null, 'Насморк', 4, 4),
        (2, 1, '2019-02-01 12:00', '2019-02-01 12:30', 'Надоедова 23', 'Течет кровь из руки', 1, 1),
        (2, 1, '2019-02-14 12:00', '2019-02-14 12:18', 'Надоедова 23', 'Болит рука', 3, 3),
-       (2, 2, '2019-02-21 12:00', '2019-02-21 12:18', 'Надоедова 23', 'Резкая боль', 3, 3);
+       (2, 2, '2019-02-21 12:00', '2019-02-21 12:18', 'Надоедова 23', 'Резкая боль', 3, 3),
+       (5, 2, '2019-01-22 13:00', '2019-01-22 13:07', null, 'Болит горло', 4, 4);
+
+INSERT INTO visits2 (patient_id, doctor_id, begin_dt, end_dt, place, symptoms, diagnosis)
+VALUES (1, 2, '2019-01-04 14:30', '2019-01-04 14:40', 'Иванова 2', 'Болит нога', 1),
+       (3, 1, '2019-01-12 12:30', '2019-01-12 12:40', null, 'Бьет жену', 2),
+       (1, 2, '2019-01-15 12:30', '2019-01-15 12:40', 'Иванова 2', 'Ноет нога', 3),
+       (3, 2, '2019-01-22 12:00', '2019-01-22 12:07', null, 'Болит горло', 4),
+       (4, 1, '2019-01-25 12:00', '2019-01-25 12:10', null, 'Насморк', 4),
+       (2, 1, '2019-02-01 12:00', '2019-02-01 12:30', 'Надоедова 23', 'Течет кровь из руки', 1),
+       (2, 1, '2019-02-14 12:00', '2019-02-14 12:18', 'Надоедова 23', 'Болит рука', 3),
+       (2, 2, '2019-02-21 12:00', '2019-02-21 12:18', 'Надоедова 23', 'Резкая боль', 3),
+       (5, 2, '2019-01-22 13:00', '2019-01-22 13:07', null, 'Болит горло', 4);
+
+INSERT INTO written_drugs(visit_id, drug_id)
+VALUES (1, 1),
+       (2, 2),
+       (3, 3),
+       (4, 4),
+       (5, 4),
+       (6, 1),
+       (7, 3),
+       (8, 3),
+       (9, 4);
+
 
 -- Selects
 
@@ -96,7 +142,7 @@ VALUES (1, 2, '2019-01-04 14:30', '2019-01-04 14:40', 'Иванова 2', 'Бо�
 
 SELECT p.name                                                     as patient_name,
        d.name                                                     as doctor_name,
-       date(begin_dt)                                             as date,
+       begin_dt                                                   as date,
        timediff(end_dt, begin_dt)                                 as duration,
        round((JULIANDAY(end_dt) - JULIANDAY(begin_dt)) * 24 * 60) as duration_min,
        place
@@ -111,7 +157,7 @@ WHERE '2019-01-01' < begin_dt
 
 SELECT name
 FROM drugs
-WHERE instr(name, '3%');
+WHERE name LIKE '%3\%%' ESCAPE '\';
 
 -- #3
 -- Вывести данные о врачах, обслуживших максимальное количество пациентов на дому
@@ -133,6 +179,7 @@ FROM doctors
                FROM (select doctor_id,
                             SUM(round((JULIANDAY(end_dt) - JULIANDAY(begin_dt)) * 24 * 60)) as common_time_min
                      FROM visits
+                     WHERE place IS NULL
                      GROUP BY doctor_id)) ON doctor_id = doctors.id;
 
 -- #5
@@ -184,13 +231,22 @@ GROUP BY d.id;
 -- #9
 -- Вывести данные о самых молодых пациентах, которым прописано максимальное количество лекарств.
 
-SELECT p.name, floor((JULIANDAY('now') - JULIANDAY(p.birthday)) / 365.25) as age, count(d.id) as drugs_count
-FROM patients p
-         JOIN visits v on p.id = v.patient_id
-         JOIN drugs d on d.id = v.drug_id
--- WHERE not (p.is_male)
-GROUP BY p.id
-ORDER BY age, drugs_count;
+
+WITH young_patients AS (SELECT p.name,
+                               floor((JULIANDAY('now') - JULIANDAY(p.birthday)) / 365.25) as age,
+                               count(d.id)                                                as drugs_count
+                        FROM patients p
+                                 JOIN visits2 v on p.id = v.patient_id
+                                 JOIN written_drugs wd on v.id = wd.visit_id
+                                 JOIN drugs d on d.id = wd.drug_id
+                        WHERE age =
+                              (SELECT min(floor((JULIANDAY('now') - JULIANDAY(p.birthday)) / 365.25)) as min_age
+                               FROM patients p)
+                        GROUP BY p.id)
+SELECT *
+FROM young_patients
+WHERE drugs_count = (SELECT max(drugs_count) FROM young_patients);
+
 
 -- #10
 -- Вывести данные о пациентах, о которых точно известно, что они никогда не
