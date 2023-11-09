@@ -42,3 +42,13 @@ CREATE TABLE exam_notes
     note       INTEGER NOT NULL,
     date       DATE    NOT NULL
 );
+
+
+INSERT INTO universities(id, name, rating, place)
+VALUES (1, 'Belarusian State University', 9.8, 'Minsk'),
+       (2, 'Gomel State University', 8.8, 'Gomel'),
+       (3, 'Yanka Kupala State University of Grodno', 8.5, 'Grodno'),
+       (4, 'Belarusian State University of Informatics and Radioelectronics', 8.2, 'Minsk'),
+       (5, 'Brest state technical university', 6.6, 'Brest');
+
+
