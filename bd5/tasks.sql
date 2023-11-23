@@ -5,8 +5,13 @@ CREATE
 AS
 $$
 BEGIN
+    IF TO_CHAR(current_date, 'MM') NOT BETWEEN '07' AND '08' THEN
+        RAISE EXCEPTION 'Дата не входит в диапазон 1 июля - 31 августа.';
+    END IF;
+
     UPDATE students
     SET Kurs = Kurs + 1;
+
     DELETE
     FROM students
     WHERE Kurs > 5;
@@ -23,7 +28,7 @@ AS
 $$
 BEGIN
     UPDATE students
-    SET stipend = stipend + 10 * (e.avg_mark - 5)
+    SET stipend = stipend + stipend * 10 * (e.avg_mark - 5) / 100
     FROM (SELECT EM.student_id, AVG(EM.mark) AS avg_mark
           FROM exam_marks EM
           GROUP BY EM.student_id) e
@@ -31,36 +36,48 @@ BEGIN
 END;
 $$;
 
-CALL task2();
 
 -- 3
-CREATE OR REPLACE FUNCTION task3(p_id INTEGER)
-    RETURNS TABLE
-            (
-                fio       TEXT,
-                kurs      INTEGER,
-                stipendia double precision,
-                avg_note  numeric
-            )
+CREATE OR REPLACE PROCEDURE task3(
+    IN ID INT,
+    INOUT FIO TEXT,
+    INOUT Course INT,
+    INOUT Stipendia NUMERIC,
+    INOUT SrBall NUMERIC
+)
 AS
 $$
+DECLARE
+    sb FLOAT;
 BEGIN
-    RETURN QUERY
-        SELECT s.Name || ' ' || s.Surname,
-               s.Kurs,
-               s.Stipend,
-               AVG(em.Mark)
-        FROM Students s
-                 LEFT JOIN Exam_Marks em ON s.Student_id = em.Student_id
-        WHERE s.Student_id = p_id
-        GROUP BY s.Student_id;
+    SELECT AVG(Mark)
+    INTO sb
+    FROM EXAM_MARKS
+    WHERE Student_id = ID;
+
+    SELECT Name || ' ' || Surname, Kurs, Stipend, sb
+    INTO FIO, Course, Stipendia, SrBall
+    FROM Students
+    WHERE Student_id = ID;
 END;
 $$ LANGUAGE plpgsql;
 
-SELECT *
-FROM task3(1);
-SELECT *
-FROM task3(2);
+DO
+$$
+    DECLARE
+        fio       TEXT;
+        kurs      INT;
+        stipendia NUMERIC;
+        srball    numeric;
+    BEGIN
+        CALL task3(1, fio, kurs, stipendia, srball);
+        -- Выводим значения переменных на экран (можно закомментировать, если не нужно)
+        RAISE NOTICE 'FIO %', fio;
+        RAISE NOTICE 'Kurs %', kurs;
+        RAISE NOTICE 'Stipendia %', stipendia;
+        RAISE NOTICE 'Ball %', srball;
+    END
+$$;
 
 
 -- 4
