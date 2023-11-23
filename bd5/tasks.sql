@@ -57,17 +57,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Пример вызова функции
 SELECT *
 FROM task3(1);
 SELECT *
 FROM task3(2);
 
+
+-- 4
 ALTER TABLE university
     ADD COLUMN comment TEXT NULL;
 
-
--- 4
 CREATE OR REPLACE PROCEDURE task4(
     p_univ_id INTEGER,
     p_univ_name TEXT,
@@ -99,4 +98,61 @@ CALL task4(5, 'Good place', 10, 'Utopia');
 
 
 -- 5
--- Триггер для отслеживания количества студентов
+ALTER TABLE university
+    ADD COLUMN IF NOT EXISTS students_count INTEGER NULL,
+    ADD COLUMN IF NOT EXISTS avg_mark       NUMERIC NULL;
+
+
+CREATE OR REPLACE FUNCTION task5_students_trigger_function()
+    RETURNS trigger
+AS
+$$
+BEGIN
+    UPDATE university
+    SET students_count = st.students_count
+    FROM (SELECT s.univ_id, count(s.student_id) AS students_count
+          FROM students s
+          GROUP BY s.univ_id) st
+    WHERE st.univ_id = university.univ_id;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER task5_trigger
+    AFTER INSERT OR UPDATE OR DELETE
+    ON students
+    FOR EACH STATEMENT
+EXECUTE FUNCTION task5_students_trigger_function();
+
+
+CREATE OR REPLACE FUNCTION task5_exam_marks_trigger_function()
+    RETURNS trigger
+AS
+$$
+BEGIN
+    UPDATE university
+    SET avg_mark = st.avg_mark
+    FROM (SELECT s.univ_id, avg(em.mark) AS avg_mark
+          FROM students s
+                   JOIN public.exam_marks em on s.student_id = em.student_id
+          GROUP BY s.univ_id) st
+    WHERE st.univ_id = university.univ_id;
+
+    UPDATE university
+    SET rating = ROUND(avg_mark);
+
+    UPDATE university
+    SET comment = CASE
+                      WHEN rating > 7 THEN 'Высокий'
+                      WHEN rating < 5 THEN 'Низкий'
+                      ELSE 'Средний'
+        END;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER task5_trigger
+    AFTER INSERT OR UPDATE OR DELETE
+    ON exam_marks
+    FOR EACH STATEMENT
+EXECUTE FUNCTION task5_exam_marks_trigger_function();
